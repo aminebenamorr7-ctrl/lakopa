@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Stock Decrease - Inventory System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="icon" type="image/x-icon" href="../favicon/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png">
+<link rel="manifest" href="/favicon/site.webmanifest">
+<meta name="theme-color" content="#374151">
+    <style>
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-10px); } }
+        @keyframes flash { 0% { opacity: 0.8; } 100% { opacity: 0; } }
+        @keyframes cooldownPulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        .scanning { animation: pulse 1.5s ease-in-out infinite; }
+        .cooldown { animation: cooldownPulse 0.5s ease-in-out infinite; }
+        .notification-banner { animation: slideDown 0.3s ease; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 100; min-width: 300px; max-width: 500px; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; box-shadow: 0 8px 25px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; transition: all 0.3s ease; }
+        .notification-banner.success { background: #059669; color: white; }
+        .notification-banner.warning { background: #d97706; color: white; }
+        .notification-banner.error { background: #dc2626; color: white; }
+        .notification-banner.fade-out { animation: fadeOut 0.3s ease forwards; }
+        .camera-container { position: relative; }
+        .scan-flash { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; border-radius: 8px; z-index: 10; opacity: 0; transition: opacity 0.1s ease; }
+        .scan-flash.active { opacity: 1; background: rgba(5, 150, 105, 0.3); }
+        .scan-flash.warning { opacity: 1; background: rgba(220, 38, 38, 0.3); }
+        .mobile-menu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .mobile-menu.open { max-height: 300px; }
+        @media (min-width: 768px) { .desktop-nav { display: flex !important; } .mobile-nav-btn { display: none !important; } }
+        @media (max-width: 767px) { .desktop-nav { display: none !important; } .mobile-nav-btn { display: flex !important; } }
+        
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3"><div class="bg-red-600 p-2 rounded-lg"><i class="fas fa-minus-circle text-white"></i></div><div><span class="font-semibold text-gray-900">Quick Stock Decrease</span><span class="text-xs text-gray-500 ml-2">Scan to Remove</span></div></div>
+                <div class="hidden md:flex items-center gap-3 desktop-nav">
+                    <span class="text-sm text-gray-500"><i class="fas fa-check-circle text-red-600 mr-1"></i>Scanned: <span id="scanCounter" class="font-bold text-gray-700">0</span></span>
+                    <a href="/" class="text-sm text-white bg-gray-800 px-4 py-1.5 rounded-md hover:bg-gray-700 transition shadow-sm"><i class="fas fa-arrow-left mr-1.5"></i>Inventory</a>
+                    <a href="/arrival.html" class="text-sm text-green-600 bg-white border border-gray-300 px-4 py-1.5 rounded-md hover:bg-green-50 transition shadow-sm"><i class="fas fa-truck-ramp-box mr-1.5"></i>Arrival</a>
+                    <a href="/barcodes.html" class="text-sm text-gray-700 bg-white border border-gray-300 px-4 py-1.5 rounded-md hover:bg-gray-50 transition shadow-sm"><i class="fas fa-barcode mr-1.5"></i>Barcodes</a>
+                </div>
+                <button onclick="toggleMobileMenu()" class="md:hidden mobile-nav-btn text-gray-700 p-2 rounded-md hover:bg-gray-100 transition"><i class="fas fa-bars text-xl"></i></button>
+            </div>
+            <div id="mobileMenu" class="mobile-menu md:hidden border-t border-gray-100 mt-2"><div class="py-2 space-y-1"><div class="px-3 py-2 text-sm text-gray-500"><i class="fas fa-check-circle text-red-600 mr-2"></i>Scanned: <span id="scanCounterMobile" class="font-bold text-gray-700">0</span></div><a href="/" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"><i class="fas fa-arrow-left mr-2 text-gray-400"></i>Inventory</a><a href="/arrival.html" class="block px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded-md"><i class="fas fa-truck-ramp-box mr-2"></i>Arrival</a><a href="/barcodes.html" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"><i class="fas fa-barcode mr-2 text-gray-400"></i>Barcodes</a></div></div>
+        </div>
+    </nav>
+
+    <!-- Notification Banner -->
+    <div id="notificationBanner" class="notification-banner hidden"></div>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto px-4 py-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+            <div class="text-center mb-6"><div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fas fa-qrcode text-3xl text-red-600"></i></div><h1 class="text-xl font-bold text-gray-900">Scan to Decrease Stock</h1><p class="text-sm text-gray-500 mt-1"><i class="fas fa-info-circle mr-1"></i>Scan any item barcode to remove 1 unit from inventory</p></div>
+            <div class="flex gap-4 mb-4"><div class="flex-1"><label class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-keyboard mr-1"></i>Enter SKU or scan barcode:</label><input type="text" id="scanInput" class="w-full px-4 py-3 border-2 border-gray-300 rounded-md text-lg font-mono focus:outline-none focus:border-red-500" placeholder="Scan or type SKU to remove..." autofocus onkeypress="if(event.key==='Enter')processScan()"></div><div class="flex items-end"><button onclick="processScan()" class="bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition font-medium"><i class="fas fa-minus-circle mr-2"></i>Remove</button></div></div>
+            <div class="flex items-center gap-2 mb-4"><div class="flex-1 border-t border-gray-200"></div><span class="text-xs text-gray-500">OR</span><div class="flex-1 border-t border-gray-200"></div></div>
+            <div><label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-camera mr-1"></i>Scan with camera:</label><div class="camera-container"><div id="cameraScanner" style="width:100%;border-radius:8px;overflow:hidden;"></div><div id="scanFlash" class="scan-flash"></div></div><div class="flex gap-2 mt-3"><button onclick="startCameraScanner()" id="startScanBtn" class="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-md hover:bg-red-700 transition"><i class="fas fa-camera mr-2"></i>Start Camera</button><button onclick="stopCameraScanner()" id="stopScanBtn" class="flex-1 bg-gray-600 text-white px-4 py-2.5 rounded-md hover:bg-gray-700 transition hidden"><i class="fas fa-stop mr-2"></i>Stop Camera</button></div><p class="text-xs text-gray-500 mt-2 text-center" id="scanStatus"><i class="fas fa-circle text-gray-300 mr-1" style="font-size: 6px;"></i>Ready to scan - stock will decrease automatically</p></div>
+        </div>
+        <div id="lastScanResult" class="bg-white border border-gray-200 rounded-lg p-6 mb-6 hidden"><h3 class="font-semibold text-gray-900 mb-3"><i class="fas fa-clock-rotate-left mr-2 text-gray-500"></i>Last Scan</h3><div id="lastScanContent"></div></div>
+        <div class="bg-white border border-gray-200 rounded-lg p-6"><div class="flex justify-between items-center mb-4"><h2 class="font-semibold text-gray-900"><i class="fas fa-list-check mr-2 text-gray-500"></i>Recent Decreases</h2><button onclick="clearScanLog()" class="text-xs text-red-500 hover:text-red-700"><i class="fas fa-trash-can mr-1"></i>Clear</button></div><div id="scanLog" class="text-sm text-gray-500 max-h-80 overflow-y-auto"><p><i class="fas fa-inbox mr-1"></i>No items scanned yet</p></div></div>
+    </div>
+
+    <audio id="scanBeep" preload="auto"><source src="public/mp3/beep.mp3" type="audio/mpeg"></audio>
+
+    <!-- Tracking -->
+    <script>(function(){function b(){var u=navigator.userAgent;if(u.indexOf('Edg')>-1)return'Edge';if(u.indexOf('OPR')>-1||u.indexOf('Opera')>-1)return'Opera';if(u.indexOf('Chrome')>-1)return'Chrome';if(u.indexOf('Firefox')>-1)return'Firefox';if(u.indexOf('Safari')>-1)return'Safari';return'Unknown';}function d(){var p=navigator.platform||'';if(p.indexOf('Win')>-1)return'Windows';if(p.indexOf('Mac')>-1)return'Mac';if(p.indexOf('Linux')>-1)return'Linux';if(/iPhone|iPad|iPod/.test(navigator.userAgent))return'iPhone/iPad';if(/Android/.test(navigator.userAgent))return'Android';return p||'Unknown';}fetch('/api/analytics/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device:d(),browser:b(),page:window.location.pathname,time:new Date().toISOString(),userAgent:navigator.userAgent,language:navigator.language||'Unknown',screenSize:window.screen.width+'x'+window.screen.height})}).catch(function(){});})();</script>
+
+    <!-- Main Scripts -->
+    <script>
+        // Auth check
+(function() {
+    var token = getCookie('auth_token');
+    if (!token) {
+        window.location.href = '/login.html';
+        return;
+    }
+    // Verify token with server
+    fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token })
+    }).then(function(r) { return r.json(); })
+      .then(function(d) {
+          if (!d.success) {
+              deleteCookie('auth_token');
+              window.location.href = '/login.html';
+          }
+      }).catch(function() {
+          window.location.href = '/login.html';
+      });
+    
+    function getCookie(name) {
+        var nameEQ = name + '=';
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i].trim();
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+    function deleteCookie(name) {
+        document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+    }
+})();
+function logout() {
+    var token = getCookie('auth_token');
+    fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token })
+    }).finally(function() {
+        deleteCookie('auth_token');
+        deleteCookie('auth_user');
+        window.location.href = '/login.html';
+    });
+}
+        const API_URL = window.location.origin + '/api/items';
+        let html5QrCode = null, isScannerRunning = false, isProcessing = false, isCoolingDown = false;
+        let notificationTimeout = null, scanCount = 0, scanLog = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('scanInput').focus();
+            loadScanLog();
+            var beep = document.getElementById('scanBeep');
+            if (beep) { beep.volume = 0.5; beep.load(); }
+        });
+async function loadScanLog() {
+    try {
+        var r = await fetch(API_URL + '/decrease-log');
+        var d = await r.json();
+        console.log('Server response:', d); // Debug
+        if (d.success && d.data) { 
+            scanLog = d.data; 
+            scanCount = scanLog.length;
+        } else {
+            console.log('No data from server');
+            scanLog = [];
+            scanCount = 0;
+        }
+    } catch (e) {
+        console.error('Failed to load from server:', e);
+        scanLog = [];
+        scanCount = 0;
+    }
+    updateScanCounter();
+    renderScanLog();
+}
+
+        async function saveScanToServer(logEntry) {
+    scanLog.unshift(logEntry);
+    if (scanLog.length > 100) scanLog = scanLog.slice(0, 100);
+    scanCount = scanLog.length;
+    updateScanCounter();
+    renderScanLog();
+    
+    // Save to decrease log
+    try {
+        await fetch(API_URL + '/decrease-log', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(logEntry) 
+        });
+    } catch (e) { 
+        localStorage.setItem('decreaseLog', JSON.stringify(scanLog)); 
+    }
+    
+    // Also save to permanent activity log
+    try {
+        await fetch(API_URL + '/activity-log', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({
+                type: 'decrease',
+                name: logEntry.name,
+                sku: logEntry.sku,
+                qty: logEntry.newQty || 0,
+                status: logEntry.status || 'success',
+                time: logEntry.time
+            }) 
+        });
+    } catch (e) { 
+        console.log('Activity log save failed'); 
+    }
+}
+
+        async function clearServerLog() {
+            scanLog = []; scanCount = 0; updateScanCounter(); renderScanLog();
+            try { await fetch(API_URL + '/decrease-log', { method: 'DELETE' }); } catch (e) {}
+            localStorage.setItem('decreaseLog', JSON.stringify([]));
+        }
+
+        function updateScanCounter() { document.getElementById('scanCounter').textContent = scanCount; var mc = document.getElementById('scanCounterMobile'); if (mc) mc.textContent = scanCount; }
+        function toggleMobileMenu() { document.getElementById('mobileMenu').classList.toggle('open'); }
+        function closeMobileMenu() { document.getElementById('mobileMenu').classList.remove('open'); }
+        function playBeep() { var beep = document.getElementById('scanBeep'); if (beep) { beep.currentTime = 0; beep.play().catch(function(){}); } }
+
+        function showNotification(message, type) {
+            var banner = document.getElementById('notificationBanner');
+            if (notificationTimeout) clearTimeout(notificationTimeout);
+            banner.classList.remove('hidden', 'success', 'warning', 'error', 'fade-out');
+            banner.classList.add(type);
+            var icons = { success: 'fa-check-circle', warning: 'fa-exclamation-triangle', error: 'fa-times-circle' };
+            banner.innerHTML = '<i class="fas ' + (icons[type] || 'fa-info-circle') + ' text-lg"></i><span>' + message + '</span>';
+            banner.classList.remove('hidden');
+            notificationTimeout = setTimeout(function() { banner.classList.add('fade-out'); setTimeout(function() { banner.classList.add('hidden'); banner.classList.remove('fade-out'); }, 300); }, 2500);
+        }
+
+        function showScanFlash(type) {
+            var flash = document.getElementById('scanFlash');
+            flash.classList.remove('active', 'warning');
+            if (type === 'success') flash.classList.add('active');
+            else flash.classList.add('warning');
+            setTimeout(function() { flash.classList.remove('active', 'warning'); }, 600);
+        }
+
+        function startCameraScanner() {
+            document.getElementById('cameraScanner').innerHTML = '<div id="reader" style="width:100%;"></div>';
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, 
+                function(decodedText) {
+                    if (isCoolingDown) return;
+                    document.getElementById('scanInput').value = decodedText;
+                    processScan();
+                    isCoolingDown = true;
+                    document.getElementById('scanStatus').innerHTML = '<i class="fas fa-hourglass-half text-yellow-500 mr-1" style="font-size: 10px;"></i>Cooldown... Wait 2 seconds';
+                    document.getElementById('scanStatus').classList.remove('scanning'); document.getElementById('scanStatus').classList.add('cooldown');
+                    setTimeout(function() { isCoolingDown = false; document.getElementById('scanInput').value = ''; document.getElementById('scanStatus').innerHTML = '<i class="fas fa-circle text-green-500 mr-1" style="font-size: 6px;"></i>Scanning... Stock will decrease automatically'; document.getElementById('scanStatus').classList.remove('cooldown'); document.getElementById('scanStatus').classList.add('scanning'); }, 2000);
+                }, function() {}
+            ).then(function() {
+                isScannerRunning = true;
+                document.getElementById('startScanBtn').classList.add('hidden'); document.getElementById('stopScanBtn').classList.remove('hidden');
+                document.getElementById('scanStatus').innerHTML = '<i class="fas fa-circle text-green-500 mr-1" style="font-size: 6px;"></i>Scanning... Stock will decrease automatically';
+                document.getElementById('scanStatus').classList.add('scanning');
+            }).catch(function() { document.getElementById('scanStatus').innerHTML = '<i class="fas fa-circle text-red-500 mr-1" style="font-size: 6px;"></i>Camera denied.'; });
+        }
+
+        function stopCameraScanner() {
+            if (html5QrCode && isScannerRunning) { html5QrCode.stop().then(function() { isScannerRunning = false; isCoolingDown = false; document.getElementById('startScanBtn').classList.remove('hidden'); document.getElementById('stopScanBtn').classList.add('hidden'); document.getElementById('cameraScanner').innerHTML = ''; document.getElementById('scanStatus').innerHTML = '<i class="fas fa-circle text-gray-300 mr-1" style="font-size: 6px;"></i>Ready to scan'; document.getElementById('scanStatus').classList.remove('scanning', 'cooldown'); }).catch(function(){}); }
+        }
+
+        async function processScan() {
+            if (isProcessing) return;
+            var sku = document.getElementById('scanInput').value.trim();
+            if (!sku) { showNotification('Scan or enter an SKU to decrease stock', 'warning'); return; }
+            isProcessing = true;
+            try {
+                var searchRes = await fetch(API_URL + '?search=' + encodeURIComponent(sku));
+                var searchData = await searchRes.json();
+                if (!searchData.success || searchData.data.length === 0) { showScanFlash('warning'); showNotification('<i class="fas fa-times-circle mr-1"></i>SKU not found: ' + sku, 'error'); document.getElementById('scanInput').value = ''; document.getElementById('scanInput').focus(); isProcessing = false; return; }
+                var item = searchData.data.find(function(i) { return i.sku && i.sku.toLowerCase() === sku.toLowerCase(); }) || searchData.data[0];
+                if (item.quantity <= 0) { showScanFlash('warning'); showNotification('<i class="fas fa-circle-xmark mr-1"></i>' + item.item_name + ' is already out of stock!', 'error'); showLastScan(item, 'failed'); addToLog(item.item_name, item.sku || sku, 0, 'failed'); document.getElementById('scanInput').value = ''; document.getElementById('scanInput').focus(); isProcessing = false; return; }
+                var updateRes = await fetch(API_URL + '/' + item.id + '/quantity', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quantity: 1, operation: 'subtract' }) });
+                var updateData = await updateRes.json();
+                if (updateData.success) {
+                    playBeep(); showScanFlash('success'); scanCount++; updateScanCounter();
+                    var newQty = updateData.data.quantity;
+                    var stockWarning = newQty <= 0 ? ' <i class="fas fa-circle-xmark text-red-500"></i> OUT OF STOCK!' : (newQty < 10 ? ' <i class="fas fa-triangle-exclamation text-yellow-500"></i> Low stock: ' + newQty : '');
+                    showNotification('<i class="fas fa-minus-circle mr-1"></i>' + item.item_name + ' decreased! New stock: ' + newQty + stockWarning, 'success');
+                    showLastScan(item, 'success'); addToLog(item.item_name, item.sku || sku, newQty, 'success');
+                } else { showNotification('<i class="fas fa-times-circle mr-1"></i>Error updating stock', 'error'); }
+            } catch (e) { showNotification('<i class="fas fa-times-circle mr-1"></i>Error connecting to server', 'error'); }
+            document.getElementById('scanInput').value = ''; document.getElementById('scanInput').focus();
+            setTimeout(function() { isProcessing = false; }, 300);
+        }
+
+        function showLastScan(item, status) {
+            document.getElementById('lastScanResult').classList.remove('hidden');
+            var bg = status === 'success' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+            var icon = status === 'success' ? '<i class="fas fa-check-circle text-green-600 text-2xl"></i>' : '<i class="fas fa-times-circle text-red-600 text-2xl"></i>';
+            document.getElementById('lastScanContent').innerHTML = '<div class="' + bg + ' border rounded-lg p-4 flex items-center gap-4">' + icon + '<div class="flex-1"><p class="font-semibold text-gray-900">' + item.item_name + '</p><p class="text-sm text-gray-600">SKU: <span class="font-mono">' + (item.sku || 'N/A') + '</span></p><p class="text-sm text-gray-600">New Stock: <span class="font-bold">' + item.quantity + '</span> units</p></div></div>';
+        }
+
+        function addToLog(name, sku, newQty, status) { saveScanToServer({ name: name, sku: sku, newQty: newQty, status: status, time: new Date().toISOString() }); }
+
+        function renderScanLog() {
+            var c = document.getElementById('scanLog');
+            if (!scanLog.length) { c.innerHTML = '<p><i class="fas fa-inbox mr-1"></i>No items scanned yet</p>'; return; }
+            c.innerHTML = scanLog.slice(0, 30).map(function(l) {
+                var si = l.status === 'success' ? '<i class="fas fa-check-circle text-green-500"></i>' : '<i class="fas fa-times-circle text-red-500"></i>';
+                var qd = l.status === 'success' ? (l.newQty <= 0 ? '<span class="text-red-600 font-bold">' + l.newQty + ' (OUT)</span>' : l.newQty < 10 ? '<span class="text-yellow-600 font-bold">' + l.newQty + '</span>' : '<span class="text-green-600">' + l.newQty + '</span>') : '<span class="text-red-500">0</span>';
+                return '<div class="flex justify-between items-center py-1.5 border-b border-gray-100 last:border-0"><div class="flex items-center gap-2">' + si + '<div><span class="font-medium text-gray-700">' + l.name + '</span><span class="text-xs text-gray-400 ml-2 font-mono">' + l.sku + '</span></div></div><div class="flex items-center gap-3"><span class="text-xs">Stock: ' + qd + '</span><span class="text-xs text-gray-400"><i class="fas fa-clock mr-1"></i>' + new Date(l.time).toLocaleTimeString() + '</span></div></div>';
+            }).join('');
+        }
+
+        function clearScanLog() { if (confirm('Clear all scan history?')) { clearServerLog(); showNotification('<i class="fas fa-trash-can mr-1"></i>Scan history cleared', 'warning'); } }
+    </script>
+</body>
+</html>

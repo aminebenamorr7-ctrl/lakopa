@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Inventory System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico">
+    <style>
+         body { 
+                background: url('/bg.png') center center / cover no-repeat;
+                background-color: #111827;
+                min-height: 100vh;
+
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        .login-card { animation: fadeIn 0.5s ease; }
+        .shake { animation: shake 0.4s ease; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center" style="background: url('/bg.png') center center / cover no-repeat; background-color: #111827;">
+    <div class="login-card bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+        <div class="text-center mb-6">
+           <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden bg-white-800">
+    <img src="favicon/web-app-manifest-512x512.png" alt="Logo" class="w-20 h-20 object-contain">
+</div>
+            <h1 class="text-2xl font-bold text-gray-900">Inventory System</h1>
+            <p class="text-sm text-gray-500 mt-1">Sign in to access your dashboard</p>
+        </div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <i class="fas fa-user mr-1 text-gray-400"></i>Username
+                </label>
+                <input type="text" id="username" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent" placeholder="Enter username" autofocus required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <i class="fas fa-lock mr-1 text-gray-400"></i>Password
+                </label>
+                <div class="relative">
+                    <input type="password" id="password" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent" placeholder="Enter password" required>
+                    <button type="button" onclick="togglePassword()" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-eye" id="toggleIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <p id="loginError" class="text-red-500 text-sm text-center hidden">
+                <i class="fas fa-times-circle mr-1"></i><span id="errorMessage">Invalid credentials</span>
+            </p>
+
+            <button type="submit" id="loginBtn" class="w-full bg-gray-800 text-white py-3 rounded-lg hover:bg-gray-700 transition font-medium text-sm">
+                <i class="fas fa-sign-in-alt mr-2"></i>Sign In
+            </button>
+        </form>
+
+        <p class="text-center text-xs text-gray-400 mt-6">LaKopa</p>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api/auth';
+
+        // Check if already logged in
+        document.addEventListener('DOMContentLoaded', function() {
+            var token = getCookie('auth_token');
+            if (token) {
+                verifySession(token);
+            }
+        });
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            var username = document.getElementById('username').value.trim();
+            var password = document.getElementById('password').value;
+            var btn = document.getElementById('loginBtn');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Signing in...';
+            
+            try {
+                var r = await fetch(API_BASE + '/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username, password: password })
+                });
+                var d = await r.json();
+                
+                if (d.success) {
+                    // Save token in cookie (works across all browsers)
+                    setCookie('auth_token', d.data.token, 7); // 7 days
+                    setCookie('auth_user', d.data.user.username, 7);
+                    
+                    // Redirect to inventory
+                    window.location.href = '/index.html';
+                } else {
+                    var errorEl = document.getElementById('loginError');
+                    var formEl = document.getElementById('loginForm');
+                    
+                    document.getElementById('errorMessage').textContent = d.message || 'Invalid credentials';
+                    errorEl.classList.remove('hidden');
+                    formEl.classList.add('shake');
+                    setTimeout(function() { formEl.classList.remove('shake'); }, 400);
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').focus();
+                }
+            } catch (e) {
+                document.getElementById('errorMessage').textContent = 'Cannot connect to server';
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In';
+        }
+
+        async function verifySession(token) {
+            try {
+                var r = await fetch(API_BASE + '/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+                var d = await r.json();
+                
+                if (d.success) {
+                    window.location.href = '/index.html';
+                } else {
+                    // Token invalid, clear cookies
+                    deleteCookie('auth_token');
+                    deleteCookie('auth_user');
+                }
+            } catch (e) {
+                console.log('Session check failed');
+            }
+        }
+
+        function togglePassword() {
+            var passInput = document.getElementById('password');
+            var icon = document.getElementById('toggleIcon');
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                passInput.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        // Cookie helpers
+        function setCookie(name, value, days) {
+            var expires = '';
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = '; expires=' + date.toUTCString();
+            }
+            document.cookie = name + '=' + value + expires + '; path=/';
+        }
+
+        function getCookie(name) {
+            var nameEQ = name + '=';
+            var ca = document.cookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i].trim();
+                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
+        function deleteCookie(name) {
+            document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+        }
+    </script>
+</body>
+</html>

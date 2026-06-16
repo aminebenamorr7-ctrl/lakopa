@@ -1,0 +1,100 @@
+[
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 7,
+    "status": "success",
+    "time": "2026-06-16T12:32:45.969Z"
+  },
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 6,
+    "status": "success",
+    "time": "2026-06-16T12:32:44.507Z"
+  },
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 5,
+    "status": "success",
+    "time": "2026-06-16T12:32:43.028Z"
+  },
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 4,
+    "status": "success",
+    "time": "2026-06-16T12:32:41.842Z"
+  },
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 3,
+    "status": "success",
+    "time": "2026-06-16T12:32:40.645Z"
+  },
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 3,
+    "status": "success",
+    "time": "2026-06-16T12:32:10.569Z"
+  },
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 3,
+    "status": "success",
+    "time": "2026-06-16T12:31:42.914Z"
+  },
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 3,
+    "status": "success",
+    "time": "2026-06-16T12:15:34.199Z"
+  },
+  {
+    "sku": "TRAJI-XL",
+    "name": "TRAJI",
+    "newQty": 2,
+    "status": "success",
+    "time": "2026-06-15T16:43:42.491Z"
+  },
+  {
+    "sku": "CA-BAND-XL",
+    "name": "CA BAND",
+    "newQty": 2,
+    "status": "success",
+    "time": "2026-06-15T16:40:07.193Z"
+  },
+  {
+    "sku": "TES-00002",
+    "name": "test",
+    "newQty": 115,
+    "status": "success",
+    "time": "2026-06-15T16:10:22.164Z"
+  },
+  {
+    "sku": "TES-00002",
+    "name": "test",
+    "newQty": 114,
+    "status": "success",
+    "time": "2026-06-15T16:10:21.484Z"
+  },
+  {
+    "sku": "TES-00002",
+    "name": "test",
+    "newQty": 116,
+    "status": "success",
+    "time": "2026-06-15T16:04:53.156Z"
+  },
+  {
+    "sku": "TES-00002",
+    "name": "test",
+    "newQty": 115,
+    "status": "success",
+    "time": "2026-06-15T16:04:52.594Z"
+  }
+]

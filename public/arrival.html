@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Scanner - Arrival & Decrease</title>
+    <script src="https://cdn.tailwindcss.com">
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode">
+    </script>
+    <link rel="icon" type="image/x-icon" href="../favicon/favicon.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png">
+    <link rel="manifest" href="/favicon/site.webmanifest">
+    <meta name="theme-color" content="#374151">
+    <style>
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes slideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+        @keyframes flash {
+            0% {
+                opacity: 0.8;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        @keyframes shake {
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-5px);
+            }
+            75% {
+                transform: translateX(5px);
+            }
+        }
+        @keyframes cooldownPulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        .scanning {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .cooldown {
+            animation: cooldownPulse 0.5s ease-in-out infinite;
+        }
+        .result-card {
+            animation: slideUp 0.4s ease;
+        }
+        .notification-banner {
+            animation: slideDown 0.3s ease;
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            min-width: 300px;
+            max-width: 500px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+        .notification-banner.success {
+            background: #059669;
+            color: white;
+        }
+        .notification-banner.warning {
+            background: #d97706;
+            color: white;
+        }
+        .notification-banner.error {
+            background: #dc2626;
+            color: white;
+        }
+        .notification-banner.fade-out {
+            animation: fadeOut 0.3s ease forwards;
+        }
+        .camera-container {
+            position: relative;
+        }
+        .scan-flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            border-radius: 8px;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        }
+        .scan-flash.active {
+            opacity: 1;
+            background: rgba(5, 150, 105, 0.3);
+        }
+        .scan-flash.warning {
+            opacity: 1;
+            background: rgba(220, 38, 38, 0.3);
+        }
+        .scan-flash.success-green {
+            opacity: 1;
+            background: rgba(5, 150, 105, 0.3);
+        }
+
+        /* ============ MOBILE MENU - GLASSMORPHISM ============ */
+        .mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0 0 12px 12px;
+        }
+        .mobile-menu.open {
+            max-height: 350px;
+        }
+
+        /* ============ MODERN HAMBURGER BUTTON ============ */
+        .hamburger-btn {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 44px;
+            height: 44px;
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            gap: 5px;
+        }
+        .hamburger-btn:hover {
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+            transform: scale(1.02);
+        }
+        .hamburger-btn:active {
+            transform: scale(0.95);
+        }
+        .hamburger-btn .bar {
+            display: block;
+            width: 20px;
+            height: 2.5px;
+            background: #1f2937;
+            border-radius: 4px;
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            transform-origin: center;
+            will-change: transform, opacity;
+        }
+        .hamburger-btn.active .bar:nth-child(1) {
+            transform: translateY(7px) rotate(45deg);
+            background: #1f2937;
+        }
+        .hamburger-btn.active .bar:nth-child(2) {
+            opacity: 0;
+            transform: scaleX(0);
+        }
+        .hamburger-btn.active .bar:nth-child(3) {
+            transform: translateY(-7px) rotate(-45deg);
+            background: #1f2937;
+        }
+
+        .shake {
+            animation: shake 0.4s ease;
+        }
+        .mode-toggle {
+            transition: all 0.3s ease;
+        }
+        .mode-toggle.arrival {
+            background: #059669;
+            color: white;
+        }
+        .mode-toggle.decrease {
+            background: #dc2626;
+            color: white;
+        }
+        @media (min-width: 768px) {
+            .desktop-nav {
+                display: flex !important;
+            }
+            .mobile-nav-btn {
+                display: none !important;
+            }
+        }
+        @media (max-width: 767px) {
+            .desktop-nav {
+                display: none !important;
+            }
+            .mobile-nav-btn {
+                display: flex !important;
+            }
+            .hamburger-btn {
+                width: 40px;
+                height: 40px;
+                padding: 8px;
+            }
+            .hamburger-btn .bar {
+                width: 18px;
+                height: 2px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div id="navIcon" class="bg-green-700 p-2 rounded-lg"><i class="fas fa-truck-ramp-box text-white"></i></div>
+                    <div><span class="font-semibold text-gray-900" id="navTitle">Stock Scanner</span><span class="text-xs text-gray-500 ml-2" id="navSubtitle">Arrival Mode</span></div>
+                </div>
+                <div class="hidden md:flex items-center gap-3 desktop-nav">
+                    <button onclick="testSound()" class="text-sm text-gray-700 bg-white border border-gray-300 px-3 py-1.5 rounded-md hover:bg-gray-50 transition shadow-sm"><i class="fas fa-volume-up mr-1.5 text-gray-400"></i>Test Sound</button>
+                    <span class="text-sm text-gray-500"><i class="fas fa-check-circle text-green-600 mr-1"></i>Scanned: <span id="scanCounter" class="font-bold text-gray-700">0</span></span>
+                    <a href="/" class="text-sm text-white bg-gray-800 px-4 py-1.5 rounded-md hover:bg-gray-700 transition"><i class="fas fa-arrow-left mr-1.5"></i>Inventory</a>
+                    <a href="/barcodes.html" class="text-sm text-gray-700 bg-white border border-gray-300 px-4 py-1.5 rounded-md hover:bg-gray-50 transition"><i class="fas fa-barcode mr-1.5"></i>Barcodes</a>
+                </div>
+                <!-- Modern Glassmorphism Hamburger Button -->
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="md:hidden mobile-nav-btn hamburger-btn" aria-label="Toggle menu">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+            </div>
+            <div id="mobileMenu" class="mobile-menu md:hidden">
+                <div class="py-2 space-y-1 px-2">
+                    <button onclick="testSound();closeMobileMenu();" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100/50 rounded-md"><i class="fas fa-volume-up mr-2 text-gray-400"></i>Test Sound</button>
+                    <div class="px-3 py-2 text-sm text-gray-500"><i class="fas fa-check-circle text-green-600 mr-2"></i>Scanned: <span id="scanCounterMobile" class="font-bold text-gray-700">0</span></div>
+                    <a href="/" onclick="closeMobileMenu()" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100/50 rounded-md"><i class="fas fa-arrow-left mr-2 text-gray-400"></i>Inventory</a>
+                    <a href="/barcodes.html" onclick="closeMobileMenu()" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100/50 rounded-md"><i class="fas fa-barcode mr-2 text-gray-400"></i>Barcodes</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Notification Banner -->
+    <div id="notificationBanner" class="notification-banner hidden"></div>
+
+    <!-- Main Content -->
+    <div class="max-w-6xl mx-auto px-4 py-6">
+
+        <!-- Mode Toggle -->
+        <div class="flex justify-center mb-4">
+            <div class="inline-flex bg-gray-200 rounded-lg p-1">
+                <button onclick="switchMode('arrival')" id="arrivalModeBtn" class="mode-toggle arrival px-6 py-2.5 rounded-md font-medium text-sm transition flex items-center gap-2">
+                    <i class="fas fa-truck-ramp-box"></i> Arrival (+)
+                </button>
+                <button onclick="switchMode('decrease')" id="decreaseModeBtn" class="mode-toggle px-6 py-2.5 rounded-md font-medium text-sm transition flex items-center gap-2">
+                    <i class="fas fa-minus-circle"></i> Decrease (-)
+                </button>
+            </div>
+        </div>
+
+        <!-- Scanner Section - Horizontal Layout -->
+        <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+            <div class="flex flex-col lg:flex-row gap-6">
+
+                <!-- Left: Camera -->
+                <div class="lg:w-1/2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2"><i class="fas fa-camera mr-1"></i>Scan with camera:</label>
+                    <div class="camera-container">
+                        <div id="cameraScanner" style="width:100%;border-radius:8px;overflow:hidden;min-height:250px;background:#f3f4f6;"></div>
+                        <div id="scanFlash" class="scan-flash"></div>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="startCameraScanner()" id="startScanBtn" class="flex-1 bg-gray-800 text-white px-4 py-2.5 rounded-md hover:bg-gray-700 transition"><i class="fas fa-camera mr-2"></i>Start Camera</button>
+                        <button onclick="stopCameraScanner()" id="stopScanBtn" class="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-md hover:bg-red-700 transition hidden"><i class="fas fa-stop mr-2"></i>Stop Camera</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2 text-center" id="scanStatus"><i class="fas fa-circle text-gray-300 mr-1" style="font-size: 6px;"></i>Ready to scan</p>
+                </div>
+
+                <!-- Right: Manual Input & Actions -->
+                <div class="lg:w-1/2 flex flex-col gap-4">
+                    <!-- SKU Input -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1"><i class="fas fa-keyboard mr-1"></i>Enter SKU or scan barcode:</label>
+                        <input type="text" id="scanInput" class="w-full px-4 py-3 border-2 border-gray-300 rounded-md text-lg font-mono focus:outline-none focus:border-blue-500" placeholder="Scan or type SKU..." autofocus onkeypress="if(event.key==='Enter')processScan()">
+                    </div>
+
+                    <!-- Action Button - Full width on mobile -->
+                    <button onclick="processScan()" id="actionBtn" class="w-full bg-green-700 text-white px-6 py-3 rounded-md hover:bg-green-800 transition font-medium text-lg">
+                        <i class="fas fa-plus-circle mr-2"></i>Add Stock
+                    </button>
+
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 border-t border-gray-200"></div>
+                        <span class="text-xs text-gray-500">Quick Actions</span>
+                        <div class="flex-1 border-t border-gray-200"></div>
+                    </div>
+
+                    <!-- Quick Action Buttons -->
+                    <div class="flex gap-2">
+                        <button onclick="testSound()" class="flex-1 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 px-3 py-2 rounded-md hover:bg-gray-50 transition">
+                            <i class="fas fa-volume-up mr-1.5"></i>Test Beep
+                        </button>
+                        <button onclick="clearRecentArrivals()" class="flex-1 text-sm text-red-500 hover:text-red-700 border border-red-300 px-3 py-2 rounded-md hover:bg-red-50 transition">
+                            <i class="fas fa-trash mr-1.5"></i>Clear History
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Add Form -->
+        <div id="quickAddForm" class="bg-white border-2 border-yellow-400 rounded-lg p-6 mb-6 hidden">
+            <div class="flex items-center gap-2 mb-4"><i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>
+                <div>
+                    <h2 class="font-semibold text-gray-900">Item Not Found - Quick Add</h2>
+                    <p class="text-sm text-gray-600">This SKU doesn't exist. Fill in the details to create it.</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2"><label class="block text-sm font-medium text-gray-700 mb-1">Item Name *</label><input type="text" id="newItemName" class="w-full px-3 py-2 border-2 border-gray-300 rounded-md text-sm focus:outline-none focus:border-yellow-500" placeholder="Enter item name"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">SKU</label><input type="text" id="newSku" class="w-full px-3 py-2 border rounded-md text-sm font-mono bg-gray-50" readonly></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label><input type="number" id="newQty" class="w-full px-3 py-2 border rounded-md text-sm" value="1" min="1"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Category</label><input type="text" id="newCategory" class="w-full px-3 py-2 border rounded-md text-sm" placeholder="e.g. Clothing"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Price (DT)</label><input type="number" id="newPrice" class="w-full px-3 py-2 border rounded-md text-sm" step="0.01" placeholder="0.00"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Size</label><select id="newSize" class="w-full px-3 py-2 border rounded-md text-sm"><option value="">Select</option><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Color</label><input type="text" id="newColor" class="w-full px-3 py-2 border rounded-md text-sm" placeholder="e.g. Red"></div>
+            </div>
+            <div class="flex gap-3 mt-4"><button onclick="createNewItem()" class="bg-yellow-600 text-white px-6 py-2.5 rounded-md hover:bg-yellow-700 transition font-medium"><i class="fas fa-save mr-2"></i>Create & Add Stock</button><button onclick="cancelNewItem()" class="text-gray-700 border border-gray-300 px-6 py-2.5 rounded-md hover:bg-gray-50 transition font-medium">Cancel</button></div>
+        </div>
+
+        <!-- Result Display -->
+        <div id="resultArea" class="space-y-3"></div>
+
+        <!-- Recent Activity -->
+        <div class="bg-white border border-gray-200 rounded-lg p-6 mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-semibold text-gray-900"><i class="fas fa-clock mr-2 text-gray-500"></i>Recent Activity</h2>
+                <button onclick="clearRecentArrivals()" class="text-xs text-red-500 hover:text-red-700"><i class="fas fa-trash mr-1"></i>Clear</button>
+            </div>
+            <div id="recentArrivals" class="text-sm text-gray-500">No recent activity</div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed top-4 right-4 z-50 hidden px-5 py-3 rounded-md text-white text-sm font-medium shadow-lg"></div>
+    <audio id="scanBeep" preload="auto"><source src="/mp3/beep.mp3" type="audio/mpeg"></audio>
+
+    <!-- Tracking -->
+    <script>
+        (function() {
+            function b() {
+                var u = navigator.userAgent;
+                if (u.indexOf('Edg') > -1) return 'Edge';
+                if (u.indexOf('OPR') > -1 || u.indexOf('Opera') > -1) return 'Opera';
+                if (u.indexOf('Chrome') > -1) return 'Chrome';
+                if (u.indexOf('Firefox') > -1) return 'Firefox';
+                if (u.indexOf('Safari') > -1) return 'Safari';
+                return 'Unknown';
+            }
+
+            function d() {
+                var p = navigator.platform || '';
+                if (p.indexOf('Win') > -1) return 'Windows';
+                if (p.indexOf('Mac') > -1) return 'Mac';
+                if (p.indexOf('Linux') > -1) return 'Linux';
+                if (/iPhone|iPad|iPod/.test(navigator.userAgent)) return 'iPhone/iPad';
+                if (/Android/.test(navigator.userAgent)) return 'Android';
+                return p || 'Unknown';
+            }
+            fetch('/api/analytics/track', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device: d(),
+                    browser: b(),
+                    page: window.location.pathname,
+                    time: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    language: navigator.language || 'Unknown',
+                    screenSize: window.screen.width + 'x' + window.screen.height
+                })
+            }).catch(function() {});
+        })();
+    </script>
+
+    <script>
+        // Auth check
+        (function() {
+            var token = getCookie('auth_token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+            // Verify token with server
+            fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            }).then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (!d.success) {
+                        deleteCookie('auth_token');
+                        window.location.href = '/login.html';
+                    }
+                }).catch(function() {
+                    window.location.href = '/login.html';
+                });
+
+            function getCookie(name) {
+                var nameEQ = name + '=';
+                var ca = document.cookie.split(';');
+                for (var i = 0; i < ca.length; i++) {
+                    var c = ca[i].trim();
+                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                }
+                return null;
+            }
+
+            function deleteCookie(name) {
+                document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+            }
+        })();
+
+        function logout() {
+            var token = getCookie('auth_token');
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            }).finally(function() {
+                deleteCookie('auth_token');
+                deleteCookie('auth_user');
+                window.location.href = '/login.html';
+            });
+        }
+        const API_URL = window.location.origin + '/api/items';
+        let html5QrCode = null,
+            isScannerRunning = false,
+            currentScannedSKU = '',
+            scanCount = 0;
+        let recentArrivals = [],
+            isProcessing = false,
+            isCoolingDown = false,
+            notificationTimeout = null;
+        let currentMode = 'arrival'; // 'arrival' or 'decrease'
+
+        // ============ MOBILE MENU TOGGLE ============
+        function toggleMobileMenu() {
+            var menu = document.getElementById('mobileMenu');
+            var btn = document.getElementById('hamburgerBtn');
+            menu.classList.toggle('open');
+            btn.classList.toggle('active');
+        }
+
+        function closeMobileMenu() {
+            var menu = document.getElementById('mobileMenu');
+            var btn = document.getElementById('hamburgerBtn');
+            menu.classList.remove('open');
+            btn.classList.remove('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRecentLog();
+            document.getElementById('scanInput').focus();
+            var beep = document.getElementById('scanBeep');
+            if (beep) { beep.volume = 0.5;
+                beep.load(); }
+        });
+
+        // ============ MODE SWITCHING ============
+        function switchMode(mode) {
+            currentMode = mode;
+            var arrivalBtn = document.getElementById('arrivalModeBtn');
+            var decreaseBtn = document.getElementById('decreaseModeBtn');
+            var navIcon = document.getElementById('navIcon');
+            var navTitle = document.getElementById('navTitle');
+            var navSubtitle = document.getElementById('navSubtitle');
+            var actionBtn = document.getElementById('actionBtn');
+            var scanFlash = document.getElementById('scanFlash');
+
+            if (mode === 'arrival') {
+                arrivalBtn.classList.add('arrival');
+                arrivalBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                decreaseBtn.classList.remove('decrease');
+                decreaseBtn.classList.add('bg-gray-100', 'text-gray-600');
+                navIcon.className = 'bg-green-700 p-2 rounded-lg';
+                navTitle.textContent = 'Stock Scanner';
+                navSubtitle.textContent = 'Arrival Mode';
+                actionBtn.className =
+                    'bg-green-700 text-white px-6 py-3 rounded-md hover:bg-green-800 transition font-medium whitespace-nowrap';
+                actionBtn.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>Add Stock';
+                scanFlash.classList.remove('warning');
+                document.getElementById('scanInput').className =
+                    'w-full px-4 py-3 border-2 border-gray-300 rounded-md text-lg font-mono focus:outline-none focus:border-green-500';
+            } else {
+                decreaseBtn.classList.add('decrease');
+                decreaseBtn.classList.remove('bg-gray-100', 'text-gray-600');
+                arrivalBtn.classList.remove('arrival');
+                arrivalBtn.classList.add('bg-gray-100', 'text-gray-600');
+                navIcon.className = 'bg-red-600 p-2 rounded-lg';
+                navTitle.textContent = 'Stock Scanner';
+                navSubtitle.textContent = 'Decrease Mode';
+                actionBtn.className =
+                    'bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition font-medium whitespace-nowrap';
+                actionBtn.innerHTML = '<i class="fas fa-minus-circle mr-2"></i>Remove Stock';
+                document.getElementById('scanInput').className =
+                    'w-full px-4 py-3 border-2 border-gray-300 rounded-md text-lg font-mono focus:outline-none focus:border-red-500';
+            }
+            loadRecentLog();
+        }
+
+        // ============ LOAD LOG ============
+        async function loadRecentLog() {
+            var endpoint = currentMode === 'arrival' ? '/arrival-log' : '/decrease-log';
+            try {
+                var r = await fetch(API_URL + endpoint);
+                var d = await r.json();
+                if (d.success && d.data) { recentArrivals = d.data;
+                    scanCount = d.data.length; }
+            } catch (e) { recentArrivals = [];
+                scanCount = 0; }
+            updateScanCounter();
+            displayRecentArrivals();
+        }
+
+        async function saveToServer(logEntry) {
+            recentArrivals.unshift(logEntry);
+            if (recentArrivals.length > 50) recentArrivals = recentArrivals.slice(0, 50);
+            scanCount = recentArrivals.length;
+            updateScanCounter();
+            displayRecentArrivals();
+            var endpoint = currentMode === 'arrival' ? '/arrival-log' : '/decrease-log';
+            try {
+                await fetch(API_URL + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(logEntry)
+                });
+            } catch (e) {}
+            try {
+                await fetch(API_URL + '/activity-log', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: currentMode, name: logEntry.name, sku: logEntry.sku, qty: logEntry
+                            .newQty || 1, status: logEntry.status || 'success', time: logEntry.time })
+                });
+            } catch (e) {}
+        }
+
+        async function clearServerLog() {
+            recentArrivals = [];
+            scanCount = 0;
+            updateScanCounter();
+            displayRecentArrivals();
+            var endpoint = currentMode === 'arrival' ? '/arrival-log' : '/decrease-log';
+            try { await fetch(API_URL + endpoint, { method: 'DELETE' }); } catch (e) {}
+        }
+
+        function updateScanCounter() {
+            document.getElementById('scanCounter').textContent = scanCount;
+            var mc = document.getElementById('scanCounterMobile');
+            if (mc) mc.textContent = scanCount;
+        }
+
+        function testSound() {
+            var beep = document.getElementById('scanBeep');
+            if (beep) {
+                beep.currentTime = 0;
+                beep.volume = 0.5;
+                beep.play().then(function() {
+                    showNotification('<i class="fas fa-volume-up mr-1"></i>Sound test - Beep played!', 'success');
+                }).catch(function() {
+                    showNotification('<i class="fas fa-times-circle mr-1"></i>Sound failed.', 'error');
+                });
+            } else { showNotification('<i class="fas fa-times-circle mr-1"></i>Audio element not found', 'error'); }
+        }
+
+        function playBeep() {
+            var beep = document.getElementById('scanBeep');
+            if (beep) { beep.currentTime = 0;
+                beep.play().catch(function() {}); }
+        }
+
+        function showNotification(message, type) {
+            var banner = document.getElementById('notificationBanner');
+            if (notificationTimeout) clearTimeout(notificationTimeout);
+            banner.classList.remove('hidden', 'success', 'warning', 'error', 'fade-out');
+            banner.classList.add(type);
+            var icon = type === 'success' ? 'fa-check-circle' : (type === 'warning' ? 'fa-exclamation-triangle' :
+                'fa-times-circle');
+            banner.innerHTML = '<i class="fas ' + icon + ' text-lg"></i><span>' + message + '</span>';
+            banner.classList.remove('hidden');
+            notificationTimeout = setTimeout(function() {
+                banner.classList.add('fade-out');
+                setTimeout(function() { banner.classList.add('hidden');
+                    banner.classList.remove('fade-out'); }, 300);
+            }, 2500);
+        }
+
+        function showScanFlash(type) {
+            var flash = document.getElementById('scanFlash');
+            flash.classList.remove('active', 'warning', 'success-green');
+            if (type === 'success') flash.classList.add(currentMode === 'arrival' ? 'success-green' : 'active');
+            else flash.classList.add('warning');
+            setTimeout(function() { flash.classList.remove('active', 'warning', 'success-green'); }, 600);
+        }
+
+        function startCameraScanner() {
+            document.getElementById('cameraScanner').innerHTML = '<div id="reader" style="width:100%;"></div>';
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } },
+                function(decodedText) {
+                    if (currentMode === 'decrease' && isCoolingDown) return;
+                    document.getElementById('scanInput').value = decodedText;
+                    processScan();
+                    if (currentMode === 'decrease') {
+                        isCoolingDown = true;
+                        document.getElementById('scanStatus').innerHTML =
+                            '<i class="fas fa-hourglass-half text-yellow-500 mr-1" style="font-size: 10px;"></i>Cooldown... 2s';
+                        document.getElementById('scanStatus').classList.remove('scanning');
+                        document.getElementById('scanStatus').classList.add('cooldown');
+                        setTimeout(function() {
+                            isCoolingDown = false;
+                            document.getElementById('scanInput').value = '';
+                            document.getElementById('scanStatus').innerHTML =
+                                '<i class="fas fa-circle text-green-500 mr-1" style="font-size: 6px;"></i>Scanning...';
+                            document.getElementById('scanStatus').classList.remove('cooldown');
+                            document.getElementById('scanStatus').classList.add('scanning');
+                        }, 2000);
+                    }
+                    setTimeout(function() { document.getElementById('scanInput').value = ''; }, 500);
+                }, function() {}
+            ).then(function() {
+                isScannerRunning = true;
+                document.getElementById('startScanBtn').classList.add('hidden');
+                document.getElementById('stopScanBtn').classList.remove('hidden');
+                document.getElementById('scanStatus').innerHTML =
+                    '<i class="fas fa-circle text-green-500 mr-1" style="font-size: 6px;"></i>Scanning...';
+                document.getElementById('scanStatus').classList.add('scanning');
+            }).catch(function() {
+                document.getElementById('scanStatus').innerHTML =
+                    '<i class="fas fa-circle text-red-500 mr-1" style="font-size: 6px;"></i>Camera denied.';
+            });
+        }
+
+        function stopCameraScanner() {
+            if (html5QrCode && isScannerRunning) {
+                html5QrCode.stop().then(function() {
+                    isScannerRunning = false;
+                    isCoolingDown = false;
+                    document.getElementById('startScanBtn').classList.remove('hidden');
+                    document.getElementById('stopScanBtn').classList.add('hidden');
+                    document.getElementById('cameraScanner').innerHTML = '';
+                    document.getElementById('scanStatus').innerHTML =
+                        '<i class="fas fa-circle text-gray-300 mr-1" style="font-size: 6px;"></i>Ready to scan';
+                    document.getElementById('scanStatus').classList.remove('scanning', 'cooldown');
+                }).catch(function() {});
+            }
+        }
+
+        // ============ PROCESS SCAN ============
+        async function processScan() {
+            if (isProcessing) return;
+            var sku = document.getElementById('scanInput').value.trim();
+            if (!sku) { showNotification('Enter or scan an SKU code', 'warning'); return; }
+            isProcessing = true;
+            currentScannedSKU = sku;
+
+            if (currentMode === 'arrival') {
+                // ARRIVAL MODE
+                try {
+                    var res = await fetch(API_URL + '/sku/quick-add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sku: sku, quantity: 1 })
+                    });
+                    var data = await res.json();
+                    if (data.success) {
+                        playBeep();
+                        showScanFlash('success');
+                        var itemName = data.data.item_name || 'Item';
+                        var newQty = data.data.quantity || 0;
+                        showResult(data.data, newQty, 'Stock added!');
+                        showNotification('<i class="fas fa-check-circle mr-1"></i>' + itemName + ' - Stock added! (Qty: ' +
+                            newQty + ')', 'success');
+                        saveToServer({ sku: sku, name: itemName, newQty: newQty, status: 'success', time: new Date()
+                                .toISOString() });
+                    } else if (data.action === 'create' || data.notFound) {
+                        showScanFlash('warning');
+                        document.getElementById('quickAddForm').classList.remove('hidden');
+                        document.getElementById('newSku').value = sku;
+                        document.getElementById('newItemName').value = '';
+                        document.getElementById('newItemName').focus();
+                        var form = document.getElementById('quickAddForm');
+                        form.classList.add('shake');
+                        setTimeout(function() { form.classList.remove('shake'); }, 400);
+                        showNotification('<i class="fas fa-exclamation-triangle mr-1"></i>Item not found! Please create it.',
+                            'warning');
+                    } else { showNotification(data.message || 'Error', 'error'); }
+                } catch (e) {
+                    showNotification('<i class="fas fa-times-circle mr-1"></i>Error connecting to server', 'error');
+                }
+            } else {
+                // DECREASE MODE
+                try {
+                    var searchRes = await fetch(API_URL + '?search=' + encodeURIComponent(sku));
+                    var searchData = await searchRes.json();
+                    if (!searchData.success || searchData.data.length === 0) {
+                        showScanFlash('warning');
+                        showNotification('<i class="fas fa-times-circle mr-1"></i>SKU not found: ' + sku, 'error');
+                        isProcessing = false;
+                        return;
+                    }
+                    var item = searchData.data.find(function(i) { return i.sku && i.sku.toLowerCase() === sku
+                            .toLowerCase(); }) || searchData.data[0];
+                    if (item.quantity <= 0) {
+                        showScanFlash('warning');
+                        showNotification('<i class="fas fa-circle-xmark mr-1"></i>' + item.item_name +
+                            ' is already out of stock!', 'error');
+                        showLastScan(item, 'failed');
+                        saveToServer({ sku: sku, name: item.item_name, newQty: 0, status: 'failed', time: new Date()
+                                .toISOString() });
+                        isProcessing = false;
+                        return;
+                    }
+                    var updateRes = await fetch(API_URL + '/' + item.id + '/quantity', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ quantity: 1, operation: 'subtract' })
+                    });
+                    var updateData = await updateRes.json();
+                    if (updateData.success) {
+                        playBeep();
+                        showScanFlash('success');
+                        var newQty = updateData.data.quantity;
+                        var stockWarning = newQty <= 0 ?
+                            ' <i class="fas fa-circle-xmark text-red-500"></i> OUT OF STOCK!' : (newQty < 10 ?
+                                ' <i class="fas fa-triangle-exclamation text-yellow-500"></i> Low stock: ' + newQty :
+                                '');
+                        showNotification('<i class="fas fa-minus-circle mr-1"></i>' + item.item_name +
+                            ' decreased! New stock: ' + newQty + stockWarning, 'success');
+                        showLastScan(item, 'success');
+                        saveToServer({ sku: sku, name: item.item_name, newQty: newQty, status: 'success', time: new Date()
+                                .toISOString() });
+                    } else { showNotification('<i class="fas fa-times-circle mr-1"></i>Error updating stock', 'error'); }
+                } catch (e) {
+                    showNotification('<i class="fas fa-times-circle mr-1"></i>Error connecting to server', 'error');
+                }
+            }
+            document.getElementById('scanInput').value = '';
+            document.getElementById('scanInput').focus();
+            setTimeout(function() { isProcessing = false; }, 300);
+        }
+
+        // ============ CREATE NEW ITEM ============
+        async function createNewItem() {
+            var itemName = document.getElementById('newItemName').value.trim(),
+                sku = document.getElementById('newSku').value.trim();
+            if (!itemName) { showNotification('Please enter an item name', 'error'); return; }
+            var itemData = {
+                sku: sku,
+                item_name: itemName,
+                category: document.getElementById('newCategory').value || null,
+                quantity: parseInt(document.getElementById('newQty').value) || 1,
+                price: parseFloat(document.getElementById('newPrice').value) || 0,
+                size: document.getElementById('newSize').value || null,
+                color: document.getElementById('newColor').value || null
+            };
+            var btn = document.querySelector('#quickAddForm button');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+            try {
+                var res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(itemData)
+                });
+                var data = await res.json();
+                if (data.success) {
+                    playBeep();
+                    document.getElementById('quickAddForm').classList.add('hidden');
+                    showResult(itemData, itemData.quantity, 'Item created!');
+                    showNotification('<i class="fas fa-check-circle mr-1"></i>' + itemData.item_name +
+                        ' - Created! (Qty: ' + itemData.quantity + ')', 'success');
+                    saveToServer({ sku: sku, name: itemData.item_name, newQty: itemData.quantity, status: 'created',
+                        time: new Date().toISOString() });
+                    clearQuickAddForm();
+                } else { showNotification(data.message || 'Error', 'error'); }
+            } catch (e) {
+                showNotification('<i class="fas fa-times-circle mr-1"></i>Error creating item', 'error');
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save mr-2"></i>Create & Add Stock';
+        }
+
+        function cancelNewItem() {
+            document.getElementById('quickAddForm').classList.add('hidden');
+            clearQuickAddForm();
+            document.getElementById('scanInput').value = '';
+            document.getElementById('scanInput').focus();
+        }
+
+        function clearQuickAddForm() {
+            document.getElementById('newItemName').value = '';
+            document.getElementById('newSku').value = '';
+            document.getElementById('newQty').value = '1';
+            document.getElementById('newCategory').value = '';
+            document.getElementById('newPrice').value = '';
+            document.getElementById('newSize').value = '';
+            document.getElementById('newColor').value = '';
+        }
+
+        function showResult(item, newQty, message) {
+            var area = document.getElementById('resultArea'),
+                isNew = !document.getElementById('quickAddForm').classList.contains('hidden');
+            var bgColor = currentMode === 'arrival' ? (isNew ? 'bg-green-50 border-green-200' :
+                'bg-blue-50 border-blue-200') : 'bg-red-50 border-red-200';
+            var itemName = item.item_name || 'Item',
+                itemSku = item.sku || currentScannedSKU;
+            area.innerHTML = '<div class="result-card ' + bgColor +
+                ' border rounded-lg p-4"><div class="flex justify-between items-start"><div><p class="font-semibold text-gray-900">' +
+                itemName + '</p><p class="text-sm text-gray-600">SKU: <span class="font-mono">' + itemSku +
+                '</span></p><p class="text-sm text-gray-600">Quantity: <span class="font-bold">' + newQty +
+                '</span> units</p>' + (item.price ? '<p class="text-sm text-gray-600">Price: DT' + parseFloat(item
+                    .price).toFixed(2) + '</p>' : '') +
+                '<p class="text-xs text-green-700 mt-1"><i class="fas fa-check-circle mr-1"></i>' + message +
+                '</p></div><span class="text-xs px-2 py-1 rounded-full ' + (isNew ?
+                    'bg-green-200 text-green-800' : 'bg-blue-200 text-blue-800') + '">' + (isNew ? 'NEW' :
+                    'UPDATED') + '</span></div></div>' + area.innerHTML;
+            var cards = area.querySelectorAll('.result-card');
+            if (cards.length > 10) cards[cards.length - 1].remove();
+        }
+
+        function showLastScan(item, status) {
+            document.getElementById('resultArea').classList.remove('hidden');
+            var bg = status === 'success' ? 'bg-red-50 border-red-200' : 'bg-red-100 border-red-300';
+            var icon = status === 'success' ?
+                '<i class="fas fa-check-circle text-red-600 text-2xl"></i>' :
+                '<i class="fas fa-times-circle text-red-600 text-2xl"></i>';
+            document.getElementById('resultArea').innerHTML = '<div class="result-card ' + bg +
+                ' border rounded-lg p-4 flex items-center gap-4">' + icon +
+                '<div class="flex-1"><p class="font-semibold text-gray-900">' + item.item_name +
+                '</p><p class="text-sm text-gray-600">SKU: <span class="font-mono">' + (item.sku || 'N/A') +
+                '</span></p><p class="text-sm text-gray-600">New Stock: <span class="font-bold">' + item.quantity +
+                '</span> units</p></div></div>' + document.getElementById('resultArea').innerHTML;
+        }
+
+        function displayRecentArrivals() {
+            var container = document.getElementById('recentArrivals');
+            if (!recentArrivals.length) { container.innerHTML = '<p class="text-sm text-gray-500">No recent activity</p>'; return; }
+            container.innerHTML = recentArrivals.map(function(a) {
+                var statusIcon = a.status === 'success' || a.status === 'added' ?
+                    '<i class="fas fa-check-circle text-green-500"></i>' : (a.status === 'created' ?
+                        '<i class="fas fa-plus-circle text-blue-500"></i>' :
+                        '<i class="fas fa-times-circle text-red-500"></i>');
+                var qtyDisplay = a.newQty !== undefined ? a.newQty : (a.qty || '?');
+                var typeIcon = currentMode === 'arrival' ?
+                    '<i class="fas fa-truck-ramp-box text-green-600"></i>' :
+                    '<i class="fas fa-minus-circle text-red-600"></i>';
+                return '<div class="flex justify-between items-center py-1.5 border-b border-gray-100 last:border-0"><div class="flex items-center gap-2">' +
+                    typeIcon + '<div><span class="font-medium text-gray-700">' + a.name +
+                    '</span><span class="text-xs text-gray-400 ml-2 font-mono">' + a.sku +
+                    '</span></div></div><div class="flex items-center gap-3"><span class="text-xs">Qty: <span class="font-bold">' +
+                    qtyDisplay + '</span></span><span class="text-xs text-gray-400"><i class="fas fa-clock mr-1"></i>' +
+                    new Date(a.time).toLocaleTimeString() + '</span></div></div>';
+            }).join('');
+        }
+
+        function clearRecentArrivals() {
+            if (confirm('Clear all recent activity?')) { clearServerLog();
+                showNotification('<i class="fas fa-trash mr-1"></i>Recent activity cleared', 'warning'); }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category Management</title>
+
+    <!-- ============ EXTERNAL LIBRARIES ============ -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <link rel="icon" type="image/x-icon" href="../favicon/favicon.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png">
+    <link rel="manifest" href="/favicon/site.webmanifest">
+    <meta name="theme-color" content="#374151">
+
+    <!-- ============ CUSTOM STYLES ============ -->
+    <style>
+        /* ============ KEYFRAME ANIMATIONS ============ */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* ============ ANIMATION CLASSES ============ */
+        .animate-fadeIn { animation: fadeIn 0.3s ease; }
+
+        /* ============ DROPDOWN STYLES ============ */
+        .dropdown-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+        .dropdown-content.open { max-height: 3000px; }
+
+        /* ============ CATEGORY CARD STYLES ============ */
+        .category-card { transition: all 0.2s ease; }
+        .category-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+        /* ============ MOBILE MENU - GLASSMORPHISM ============ */
+        .mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0 0 12px 12px;
+        }
+        .mobile-menu.open { max-height: 300px; }
+
+        /* ============ MODERN HAMBURGER BUTTON ============ */
+        .hamburger-btn {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 44px;
+            height: 44px;
+            padding: 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            gap: 5px;
+        }
+        .hamburger-btn:hover {
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+            transform: scale(1.02);
+        }
+        .hamburger-btn:active { transform: scale(0.95); }
+        .hamburger-btn .bar {
+            display: block;
+            width: 20px;
+            height: 2.5px;
+            background: #1f2937;
+            border-radius: 4px;
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            transform-origin: center;
+            will-change: transform, opacity;
+        }
+        .hamburger-btn.active .bar:nth-child(1) {
+            transform: translateY(7px) rotate(45deg);
+            background: #1f2937;
+        }
+        .hamburger-btn.active .bar:nth-child(2) {
+            opacity: 0;
+            transform: scaleX(0);
+        }
+        .hamburger-btn.active .bar:nth-child(3) {
+            transform: translateY(-7px) rotate(-45deg);
+            background: #1f2937;
+        }
+
+        /* ============ SPINNER ============ */
+        .spinner { width: 40px; height: 40px; border: 3px solid #e5e7eb; border-top: 3px solid #374151; border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+        /* ============ CUSTOM SCROLLBAR ============ */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f9fafb; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+        /* ============ TABLE STYLES ============ */
+        .items-table th { background: #f9fafb; font-weight: 600; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+        .items-table td { font-size: 13px; color: #374151; }
+        .items-table tr { transition: background-color 0.15s ease; }
+        .items-table tr:hover { background-color: #f9fafb; }
+
+        /* ============ PRINT STYLES ============ */
+        @media print { body * { visibility: hidden; } #printArea, #printArea * { visibility: visible; } #printArea { position: absolute; left: 0; top: 0; width: 100%; } }
+
+        /* ============ RESPONSIVE MEDIA QUERIES ============ */
+        @media (max-width: 768px) {
+            .desktop-nav { display: none !important; }
+            .mobile-nav-btn { display: flex !important; }
+            .items-table th { font-size: 9px; }
+            .items-table td { font-size: 11px; padding: 4px 6px; }
+            .hamburger-btn { width: 40px; height: 40px; padding: 8px; }
+            .hamburger-btn .bar { width: 18px; height: 2px; }
+        }
+        @media (max-width: 640px) {
+            .stat-card { padding: 12px; }
+            .stat-card .text-2xl { font-size: 1.25rem; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- ============ NAVIGATION ============ -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-14">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3">
+                    <div class="bg-gray-800 p-2 rounded-lg"><i class="fas fa-folder-tree text-lg text-white"></i></div>
+                    <div><span class="text-lg font-semibold text-gray-900">Category Management</span><span class="text-xs text-gray-500 ml-2 hidden sm:inline">Browse by Category</span></div>
+                </div>
+
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center gap-2 desktop-nav">
+                    <a href="/analytics.html" class="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-md hover:bg-gray-100 transition"><i class="fas fa-chart-bar mr-1.5 text-gray-400"></i>Analytics</a>
+                    <button onclick="exportAllToPDF()" class="text-sm text-gray-700 bg-white border border-gray-300 px-4 py-1.5 rounded-md hover:bg-gray-50 transition shadow-sm"><i class="fas fa-file-pdf mr-1.5 text-red-500"></i>Export PDF</button>
+                    <a href="/" class="text-sm text-white bg-gray-800 px-4 py-1.5 rounded-md hover:bg-gray-700 transition shadow-sm"><i class="fas fa-arrow-left mr-1.5"></i>Inventory</a>
+                </div>
+
+                <!-- Modern Glassmorphism Hamburger Button -->
+                <button id="hamburgerBtn" onclick="toggleMobileMenu()" class="md:hidden mobile-nav-btn hamburger-btn" style="display:none;" aria-label="Toggle menu">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+            </div>
+
+            <!-- Mobile Menu - Glassmorphism -->
+            <div id="mobileMenu" class="mobile-menu md:hidden">
+                <div class="py-2 space-y-1 px-2">
+                    <a href="/analytics.html" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100/50 rounded-md"><i class="fas fa-chart-bar mr-2 text-gray-400"></i>Analytics</a>
+                    <button onclick="exportAllToPDF()" class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100/50 rounded-md"><i class="fas fa-file-pdf mr-2 text-red-500"></i>Export PDF</button>
+                    <a href="/" class="block px-3 py-2 text-sm font-medium text-white bg-gray-800 rounded-md"><i class="fas fa-arrow-left mr-2"></i>Inventory</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ============ MAIN CONTENT ============ -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ============ STATS ROW ============ -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 lg:p-5 stat-card"><div class="flex items-center justify-between"><div><p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Categories</p><p class="text-xl lg:text-2xl font-bold text-gray-900 mt-1" id="totalCategories">0</p></div><div class="bg-gray-100 p-2.5 lg:p-3 rounded-lg"><i class="fas fa-folder-tree text-base lg:text-lg text-gray-600"></i></div></div></div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 lg:p-5 stat-card"><div class="flex items-center justify-between"><div><p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Items</p><p class="text-xl lg:text-2xl font-bold text-gray-900 mt-1" id="totalItems">0</p></div><div class="bg-gray-100 p-2.5 lg:p-3 rounded-lg"><i class="fas fa-boxes-stacked text-base lg:text-lg text-gray-600"></i></div></div></div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 lg:p-5 stat-card"><div class="flex items-center justify-between"><div><p class="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Quantity</p><p class="text-xl lg:text-2xl font-bold text-gray-900 mt-1" id="totalQuantity">0</p></div><div class="bg-gray-100 p-2.5 lg:p-3 rounded-lg"><i class="fas fa-cubes text-base lg:text-lg text-gray-600"></i></div></div></div>
+        </div>
+
+        <!-- ============ TOOLBAR ============ -->
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+            <p class="text-sm text-gray-500" id="categoryCount">0 categories found</p>
+            <div class="flex gap-2">
+                <button onclick="expandAll()" class="text-sm text-gray-700 bg-white border border-gray-300 px-3 lg:px-4 py-1.5 rounded-md hover:bg-gray-50 transition"><i class="fas fa-expand mr-1.5 text-gray-400"></i>Expand All</button>
+                <button onclick="collapseAll()" class="text-sm text-gray-700 bg-white border border-gray-300 px-3 lg:px-4 py-1.5 rounded-md hover:bg-gray-50 transition"><i class="fas fa-compress mr-1.5 text-gray-400"></i>Collapse All</button>
+            </div>
+        </div>
+
+        <!-- ============ CATEGORIES LIST ============ -->
+        <div id="categoriesContainer" class="space-y-3">
+            <div class="text-center py-16 bg-white border border-gray-200 rounded-lg"><div class="spinner mx-auto"></div><p class="mt-4 text-sm text-gray-500">Loading categories...</p></div>
+        </div>
+    </div>
+
+    <!-- ============ TOAST ============ -->
+    <div id="toast" class="fixed top-4 right-4 z-50 hidden px-5 py-3 rounded-md text-white text-sm font-medium shadow-lg"></div>
+
+    <!-- ============ SCRIPTS ============ -->
+    <script>
+        // ============ MOBILE MENU TOGGLE ============
+        function toggleMobileMenu() {
+            var menu = document.getElementById('mobileMenu');
+            var btn = document.getElementById('hamburgerBtn');
+            menu.classList.toggle('open');
+            btn.classList.toggle('active');
+        }
+
+        // Auth check
+        (function() {
+            var token = getCookie('auth_token');
+            if (!token) {
+                window.location.href = '/login.html';
+                return;
+            }
+            // Verify token with server
+            fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            }).then(function(r) { return r.json(); })
+              .then(function(d) {
+                  if (!d.success) {
+                      deleteCookie('auth_token');
+                      window.location.href = '/login.html';
+                  }
+              }).catch(function() {
+                  window.location.href = '/login.html';
+              });
+            
+            function getCookie(name) {
+                var nameEQ = name + '=';
+                var ca = document.cookie.split(';');
+                for (var i = 0; i < ca.length; i++) {
+                    var c = ca[i].trim();
+                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                }
+                return null;
+            }
+            function deleteCookie(name) {
+                document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+            }
+        })();
+
+        function logout() {
+            var token = getCookie('auth_token');
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            }).finally(function() {
+                deleteCookie('auth_token');
+                deleteCookie('auth_user');
+                window.location.href = '/login.html';
+            });
+        }
+
+        // ============ GLOBAL VARIABLES ============
+        const API_URL = window.location.origin + '/api/items';
+
+        // ============ INITIALIZATION ============
+        document.addEventListener('DOMContentLoaded', function() { loadCategories(); });
+
+        // ============ LOAD CATEGORIES ============
+        async function loadCategories() {
+            try { const res = await fetch(API_URL); const data = await res.json();
+                if (data.success) { const items = data.data; updateStats(items); const categories = groupByCategory(items); displayCategories(categories); }
+            } catch (e) { console.error('Error loading categories:', e); showToast('Error loading categories', 'error'); }
+        }
+
+        // ============ GROUP ITEMS BY CATEGORY ============
+        function groupByCategory(items) {
+            const categories = {};
+            items.forEach(function(item) {
+                const cat = item.category || 'Uncategorized';
+                if (!categories[cat]) { categories[cat] = { name: cat, items: [], totalQuantity: 0, totalValue: 0 }; }
+                categories[cat].items.push(item);
+                categories[cat].totalQuantity += parseInt(item.quantity) || 0;
+                categories[cat].totalValue += (parseFloat(item.price) || 0) * (parseInt(item.quantity) || 0);
+            });
+            const sorted = {};
+            Object.keys(categories).sort(function(a, b) { return a.localeCompare(b); }).forEach(function(key) { sorted[key] = categories[key]; });
+            return sorted;
+        }
+
+        // ============ UPDATE STATS ============
+        function updateStats(items) {
+            const categorySet = new Set();
+            items.forEach(function(item) { if (item.category) categorySet.add(item.category); });
+            document.getElementById('totalCategories').textContent = categorySet.size;
+            document.getElementById('totalItems').textContent = items.length;
+            document.getElementById('totalQuantity').textContent = items.reduce(function(s, i) { return s + (parseInt(i.quantity) || 0); }, 0);
+        }
+
+        // ============ DISPLAY CATEGORIES ============
+        function displayCategories(categories) {
+            const container = document.getElementById('categoriesContainer');
+            const catNames = Object.keys(categories);
+            document.getElementById('categoryCount').textContent = catNames.length + ' categories found';
+            if (catNames.length === 0) { container.innerHTML = '<div class="text-center py-16 bg-white border border-gray-200 rounded-lg"><i class="fas fa-folder-open text-4xl text-gray-300 mb-3"></i><p class="text-gray-500 text-sm">No categories found</p><p class="text-gray-400 text-xs mt-1">Add categories to your items in the inventory page</p></div>'; return; }
+
+            container.innerHTML = catNames.map(function(catName, index) {
+                const cat = categories[catName];
+                const catId = 'cat-' + index;
+                return '<div class="bg-white border border-gray-200 rounded-lg overflow-hidden category-card">' +
+                    '<div class="px-4 lg:px-5 py-3 lg:py-4 cursor-pointer hover:bg-gray-50 transition" onclick="toggleCategory(\'' + catId + '\')">' +
+                    '<div class="flex items-center justify-between">' +
+                    '<div class="flex items-center gap-3 lg:gap-4">' +
+                    '<div class="bg-gray-100 p-2 lg:p-2.5 rounded-lg"><i class="fas fa-folder text-gray-600"></i></div>' +
+                    '<div><h3 class="font-semibold text-gray-900 text-sm lg:text-base">' + catName + '</h3><p class="text-xs text-gray-500 mt-0.5">' + cat.items.length + ' items &middot; ' + cat.totalQuantity + ' units &middot; DT' + cat.totalValue.toFixed(2) + '</p></div>' +
+                    '</div>' +
+                    '<div class="flex items-center gap-2 lg:gap-3">' +
+                    '<button onclick="event.stopPropagation(); exportCategoryPDF(\'' + catName.replace(/'/g, "\\'") + '\')" class="text-xs text-gray-600 bg-gray-100 px-2 lg:px-2.5 py-1 rounded hover:bg-gray-200 transition"><i class="fas fa-file-pdf mr-1 text-red-500"></i>PDF</button>' +
+                    '<i class="fas fa-chevron-down text-gray-400 text-sm transition-transform duration-300" id="' + catId + '-icon"></i>' +
+                    '</div></div></div>' +
+                    '<div id="' + catId + '" class="dropdown-content"><div class="border-t border-gray-100 overflow-x-auto"><table class="w-full items-table"><thead><tr><th class="px-3 lg:px-4 py-2.5 text-left">#</th><th class="px-3 lg:px-4 py-2.5 text-left">SKU</th><th class="px-3 lg:px-4 py-2.5 text-left">Item Name</th><th class="px-3 lg:px-4 py-2.5 text-center">Qty</th><th class="px-3 lg:px-4 py-2.5 text-left">Size</th><th class="px-3 lg:px-4 py-2.5 text-left">Color</th><th class="px-3 lg:px-4 py-2.5 text-right">Price</th><th class="px-3 lg:px-4 py-2.5 text-left">Location</th></tr></thead><tbody class="divide-y divide-gray-100">' +
+                    cat.items.sort(function(a, b) { return (a.item_name || '').localeCompare(b.item_name || ''); }).map(function(item, i) {
+                        const qtyClass = item.quantity === 0 ? 'text-red-600 font-semibold' : (item.quantity < 10 ? 'text-yellow-600 font-semibold' : 'text-gray-700');
+                        return '<tr class="animate-fadeIn" style="animation-delay:' + (i * 0.02) + 's">' +
+                            '<td class="px-3 lg:px-4 py-2 text-xs text-gray-400">' + (i + 1) + '</td>' +
+                            '<td class="px-3 lg:px-4 py-2 font-mono text-xs text-gray-500">' + (item.sku || 'ITEM-' + item.id) + '</td>' +
+                            '<td class="px-3 lg:px-4 py-2 font-medium text-gray-900 text-sm">' + item.item_name + '</td>' +
+                            '<td class="px-3 lg:px-4 py-2 text-center ' + qtyClass + '">' + item.quantity + '</td>' +
+                            '<td class="px-3 lg:px-4 py-2 text-xs text-gray-500">' + (item.size || '-') + '</td>' +
+                            '<td class="px-3 lg:px-4 py-2 text-xs text-gray-500">' + (item.color || '-') + '</td>' +
+                            '<td class="px-3 lg:px-4 py-2 text-right text-xs text-gray-700">' + (item.price ? 'DT' + parseFloat(item.price).toFixed(2) : '-') + '</td>' +
+                            '<td class="px-3 lg:px-4 py-2 text-xs text-gray-500">' + (item.location || '-') + '</td></tr>';
+                    }).join('') +
+                    '</tbody></table></div></div></div>';
+            }).join('');
+        }
+
+        // ============ TOGGLE CATEGORY DROPDOWN ============
+        function toggleCategory(catId) { const content = document.getElementById(catId); const icon = document.getElementById(catId + '-icon'); if (content.classList.contains('open')) { content.classList.remove('open'); icon.style.transform = 'rotate(0deg)'; } else { content.classList.add('open'); icon.style.transform = 'rotate(180deg)'; } }
+
+        // ============ EXPAND ALL ============
+        function expandAll() { document.querySelectorAll('.dropdown-content').forEach(function(el) { el.classList.add('open'); }); document.querySelectorAll('[id$="-icon"]').forEach(function(el) { el.style.transform = 'rotate(180deg)'; }); }
+
+        // ============ COLLAPSE ALL ============
+        function collapseAll() { document.querySelectorAll('.dropdown-content').forEach(function(el) { el.classList.remove('open'); }); document.querySelectorAll('[id$="-icon"]').forEach(function(el) { el.style.transform = 'rotate(0deg)'; }); }
+
+        // ============ EXPORT CATEGORY TO PDF ============
+        async function exportCategoryPDF(categoryName) {
+            try { const res = await fetch(API_URL); const data = await res.json(); if (!data.success) return;
+                const items = data.data.filter(function(item) { return (item.category || 'Uncategorized') === categoryName; }).sort(function(a, b) { return (a.item_name || '').localeCompare(b.item_name || ''); });
+                if (!items.length) { showToast('No items in this category', 'error'); return; }
+                const { jsPDF } = window.jspdf; const doc = new jsPDF('landscape', 'mm', 'a4'); const pw = doc.internal.pageSize.width; const ph = doc.internal.pageSize.height;
+                const totalQty = items.reduce(function(s, i) { return s + (parseInt(i.quantity) || 0); }, 0); const totalVal = items.reduce(function(s, i) { return s + ((parseFloat(i.price) || 0) * (parseInt(i.quantity) || 0)); }, 0);
+                doc.setFontSize(16); doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'bold'); doc.text(categoryName, 14, 16);
+                doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.setFont('helvetica', 'normal'); doc.text('Items: ' + items.length + '  |  Total Qty: ' + totalQty + '  |  Total Value: DT' + totalVal.toFixed(2) + '  |  ' + new Date().toLocaleDateString(), 14, 24);
+                const head = [['#', 'SKU', 'Item Name', 'Qty', 'Size', 'Color', 'Price', 'Location']];
+                const body = items.map(function(item, i) { return [i + 1, item.sku || 'N/A', item.item_name, item.quantity, item.size || '-', item.color || '-', item.price ? 'DT' + parseFloat(item.price).toFixed(2) : '-', item.location || '-']; });
+                doc.autoTable({ startY: 30, head: head, body: body, theme: 'grid', headStyles: { fillColor: [55, 65, 81], textColor: 255, fontStyle: 'bold', fontSize: 8 }, bodyStyles: { fontSize: 8, cellPadding: 3 }, alternateRowStyles: { fillColor: [249, 250, 251] } });
+                const pc = doc.internal.getNumberOfPages(); doc.setFontSize(7); doc.setTextColor(150, 150, 150); for (let p = 1; p <= pc; p++) { doc.setPage(p); doc.text('Page ' + p + ' of ' + pc + '  |  ' + categoryName, pw / 2, ph - 8, { align: 'center' }); }
+                doc.save('category-' + categoryName.replace(/[^a-z0-9]/gi, '-').toLowerCase() + '.pdf'); showToast('PDF exported!', 'success');
+            } catch (e) { console.error(e); showToast('Error exporting PDF', 'error'); }
+        }
+
+        // ============ EXPORT ALL TO PDF ============
+        async function exportAllToPDF() {
+            try { const res = await fetch(API_URL); const data = await res.json(); if (!data.success) return;
+                const categories = groupByCategory(data.data); const { jsPDF } = window.jspdf; const doc = new jsPDF('portrait', 'mm', 'a4'); const pw = doc.internal.pageSize.width; const ph = doc.internal.pageSize.height; let y = 15;
+                doc.setFontSize(18); doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'bold'); doc.text('Category Report', pw / 2, y, { align: 'center' }); y += 10;
+                doc.setFontSize(9); doc.setTextColor(100, 100, 100); doc.setFont('helvetica', 'normal'); doc.text(new Date().toLocaleDateString(), pw / 2, y, { align: 'center' }); y += 12;
+                Object.keys(categories).forEach(function(catName) {
+                    if (y > ph - 35) { doc.addPage(); y = 15; }
+                    const cat = categories[catName];
+                    doc.setFontSize(12); doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'bold'); doc.text(catName + '  (' + cat.items.length + ' items, ' + cat.totalQuantity + ' units, DT' + cat.totalValue.toFixed(2) + ')', 14, y); y += 7;
+                    const head = [['#', 'Item Name', 'Qty', 'Size', 'Color', 'Price']];
+                    const body = cat.items.sort(function(a, b) { return (a.item_name || '').localeCompare(b.item_name || ''); }).map(function(item, i) { return [i + 1, item.item_name, item.quantity, item.size || '-', item.color || '-', item.price ? 'DT' + parseFloat(item.price).toFixed(2) : '-']; });
+                    doc.autoTable({ startY: y, head: head, body: body, theme: 'plain', headStyles: { fillColor: [55, 65, 81], textColor: 255, fontStyle: 'bold', fontSize: 7 }, bodyStyles: { fontSize: 7, cellPadding: 2 }, margin: { left: 14, right: 14 } }); y = doc.lastAutoTable.finalY + 6;
+                });
+                const pc = doc.internal.getNumberOfPages(); doc.setFontSize(7); doc.setTextColor(150, 150, 150); for (let p = 1; p <= pc; p++) { doc.setPage(p); doc.text('Page ' + p + ' of ' + pc + '  |  Category Report', pw / 2, ph - 8, { align: 'center' }); }
+                doc.save('category-report-' + new Date().toISOString().split('T')[0] + '.pdf'); showToast('Report exported!', 'success');
+            } catch (e) { console.error(e); showToast('Error exporting PDF', 'error'); }
+        }
+
+        // ============ TOAST NOTIFICATION ============
+        function showToast(message, type) { type = type || 'success'; const toast = document.getElementById('toast'); const bg = type === 'success' ? 'bg-gray-800' : (type === 'error' ? 'bg-red-600' : 'bg-yellow-500 text-gray-900'); toast.className = 'fixed top-4 right-4 z-50 px-5 py-3 rounded-md text-white text-sm font-medium shadow-lg ' + bg; toast.textContent = message; toast.style.display = 'block'; setTimeout(function() { toast.style.display = 'none'; }, 2500); }
+    </script>
+    <!-- ============ VISITOR TRACKING ============ -->
+    <script>
+    (function(){
+        function getBrowser() {
+            var ua = navigator.userAgent;
+            if (ua.indexOf('Edg') > -1) return 'Edge';
+            if (ua.indexOf('OPR') > -1 || ua.indexOf('Opera') > -1) return 'Opera';
+            if (ua.indexOf('Chrome') > -1) return 'Chrome';
+            if (ua.indexOf('Firefox') > -1) return 'Firefox';
+            if (ua.indexOf('Safari') > -1) return 'Safari';
+            if (ua.indexOf('MSIE') > -1 || ua.indexOf('Trident') > -1) return 'Internet Explorer';
+            return 'Unknown';
+        }
+        
+        function getDevice() {
+            var ua = navigator.userAgent;
+            var p = navigator.platform || '';
+            
+            // Check mobile first
+            if (/iPhone|iPad|iPod/.test(ua)) return 'iPhone/iPad';
+            if (/Android/.test(ua)) return 'Android Phone';
+            if (/Windows Phone/.test(ua)) return 'Windows Phone';
+            
+            // Check desktop
+            if (p.indexOf('Win') > -1) return 'Windows';
+            if (p.indexOf('Mac') > -1) return 'Mac';
+            if (p.indexOf('Linux') > -1) {
+                // Check if it's ARM (Raspberry Pi, etc.)
+                if (p.indexOf('arm') > -1 || p.indexOf('aarch') > -1) return 'Linux ARM';
+                return 'Linux';
+            }
+            
+            return p || 'Unknown';
+        }
+        
+        fetch('/api/analytics/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                device: getDevice(),
+                browser: getBrowser(),
+                page: window.location.pathname,
+                time: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                language: navigator.language || 'Unknown',
+                screenSize: window.screen.width + 'x' + window.screen.height
+            })
+        }).then(function(r) { return r.json(); })
+          .then(function(d) { console.log('📊 Tracked! Total visits:', d.totalVisits); })
+          .catch(function(e) { console.log('Tracking offline'); });
+    })();
+    </script>
+</body>
+</html>
